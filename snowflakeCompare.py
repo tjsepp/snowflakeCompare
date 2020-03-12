@@ -1,6 +1,6 @@
 import snowflake.connector
 import pyodbc
-from localSettings import *
+from settings import *
 import time
 
 

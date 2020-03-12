@@ -43,6 +43,6 @@ CREATE TABLE [dbo].[SnowflakeCompareResults](
 
 
 try:
-    from local_settings import *
+    from localSettings import *
 except ImportError:
     pass
