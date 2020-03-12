@@ -20,6 +20,15 @@ class SnowflakeComparison(object):
         self.local_un = LOCAL_UN
         self.local_pw = LOCAL_PW
         self.local_connection = self.connect_to_local_db()
+        self.storage_server=STORAGE_SERVER
+        self.storage_db=STORAGE_DB
+        self.storage_un=STORAGE_UN
+        self.storage_pw=STORAGE_PW
+        self.storage_connection = self.connect_to_storage_db()
+
+    def __del__(self):
+        print('Data has been sent to the database')
+
 
 
     def connect_to_snowflake(self):
@@ -46,7 +55,19 @@ class SnowflakeComparison(object):
             .format(self.local_server, self.local_db, self.local_un, self.local_pw)
         con = pyodbc.connect(connectionString)
         print('Connected to database {} on {}'.format(self.local_db,self.local_server))
+        return con
 
+    def connect_to_storage_db(self):
+        '''
+        Connects to the local database
+        '''
+        connectionString = 'DRIVER={{ODBC Driver 17 for SQL Server}};server={};database={};uid={};pwd={}' \
+            .format(self.storage_server, self.storage_db, self.storage_un, self.storage_pw)
+        con = pyodbc.connect(connectionString)
+        print('Connected to database {} on {}'.format(self.storage_db,self.storage_server))
+        cursor = con.cursor()
+        cursor.execute(CREATE_STORAGE_TABLE)
+        cursor.commit()
         return con
 
 
@@ -107,13 +128,19 @@ class SnowflakeComparison(object):
             local = self.test_query_local(query)
             return {'query':query,'local_record_count':local['row_count'],'local_exec_time':local['time'],'snow_record_count':sflake['row_count'],
                     'snow_exec_time':sflake['time'],'error':None}
+
         except Exception as e:
             return {'query': query, 'local_record_count': None, 'local_exec_time': None,
                     'snow_record_count': None,
                     'snow_exec_time': None, 'error': e}
 
+    def send_results_to_db(self,query):
+        results = self.compare_results(query)
+        cursor = self.storage_connection.cursor()
+        query = "insert into SnowflakeCompareResults(query,local_rec_count,local_exec_time,snow_rec_count,snow_exec_time,error) values('{}','{}','{}','{}','{}','{}')"\
+            .format(results['query'].replace("'","''"),results['local_record_count'],results['local_exec_time'],results['snow_record_count'],
+            results['snow_exec_time'],results['error']
+        )
+        cursor.execute(query)
+        cursor.commit()
 
-
-
-x = SnowflakeComparison()
-print(x.compare_results("select * from company1 where fic='CHN'"))
