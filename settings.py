@@ -36,7 +36,8 @@ CREATE TABLE [dbo].[SnowflakeCompareResults](
 	[local_exec_time] [float] NULL,
 	[snow_rec_count] [int] NULL,
 	[snow_exec_time] [float] NULL,
-	[error] [nvarchar](max) NULL
+	[local_error] [nvarchar](max) NULL,
+	[snow_error] [nvarchar](max) NULL
 )
 '''
 

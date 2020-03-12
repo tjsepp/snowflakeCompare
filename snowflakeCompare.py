@@ -90,15 +90,14 @@ class SnowflakeComparison(object):
             sql1 = query
             sql2 = 'select count(*) from({})z'.format(sql1)
             start = time.time()
-            #cursor.execute(sql2)
             retVal = self.execute_sf_query(sql2)
             end = time.time()
             elapse = end - start
             rows = retVal.fetchone()[0]
-            return {'query': query, 'row_count': rows, 'time': elapse, 'database': 'Snowflake', 'error':None}
+            return {'query': query, 'row_count': rows, 'time': elapse, 'error':None}
 
         except Exception as e:
-            return {'query': None, 'row_count': None, 'time': elapse, 'database': 'Snowflake', 'error':e}
+            return {'query': None, 'row_count': None, 'time': None, 'error':e}
 
 
     def test_query_local(self,query):
@@ -115,10 +114,10 @@ class SnowflakeComparison(object):
             end = time.time()
             elapse = end - start
             rows = retVal.fetchone()[0]
-            return {'query': query, 'row_count': rows, 'time': elapse, 'database': 'Snowflake', 'error':None}
+            return {'query': query, 'row_count': rows, 'time': elapse, 'error':None}
 
         except Exception as e:
-            return {'query': None, 'row_count': None, 'time': elapse, 'database': 'Snowflake', 'error':e}
+            return {'query': None, 'row_count': None, 'time': None, 'error':e}
 
 
     def compare_results(self,query):
@@ -126,21 +125,21 @@ class SnowflakeComparison(object):
         try:
             sflake = self.test_query_snowflake(query)
             local = self.test_query_local(query)
+            print(sflake['error'])
             return {'query':query,'local_record_count':local['row_count'],'local_exec_time':local['time'],'snow_record_count':sflake['row_count'],
-                    'snow_exec_time':sflake['time'],'error':None}
+                    'snow_exec_time':sflake['time'],'localError':local['error'],'snowError':sflake['error']}
 
         except Exception as e:
-            return {'query': query, 'local_record_count': None, 'local_exec_time': None,
-                    'snow_record_count': None,
-                    'snow_exec_time': None, 'error': e}
+            print(e)
+
 
     def send_results_to_db(self,query):
         results = self.compare_results(query)
         cursor = self.storage_connection.cursor()
-        query = "insert into SnowflakeCompareResults(query,local_rec_count,local_exec_time,snow_rec_count,snow_exec_time,error) values('{}','{}','{}','{}','{}','{}')"\
-            .format(results['query'].replace("'","''"),results['local_record_count'],results['local_exec_time'],results['snow_record_count'],
-            results['snow_exec_time'],results['error']
-        )
-        cursor.execute(query)
+        cursor.execute("INSERT INTO SnowflakeCompareResults(query,local_rec_count,local_exec_time,snow_rec_count,snow_exec_time,local_error,snow_error) "
+                       "VALUES (?,?,?,?,?,?,?)",
+                       (results['query'].replace("'","''"), results['local_record_count'],results['local_exec_time'],results['snow_record_count'],
+                        results['snow_exec_time'],str(results['localError']).replace("'","''"),str(results['snowError']).replace("'","''")))
+        print(query)
+        #cursor.execute(query)
         cursor.commit()
-
