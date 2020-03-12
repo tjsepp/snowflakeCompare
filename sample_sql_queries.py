@@ -4,7 +4,7 @@ In the query list, add sample queries to the list. You can use a loop to execute
 
 QUERY_LIST=[
 '''
-select * from company1 where gvkey='006066'
+select * from company2 where gvkey='006066'
 ''',
 
 ]

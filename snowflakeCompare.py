@@ -97,7 +97,7 @@ class SnowflakeComparison(object):
             return {'query': query, 'row_count': rows, 'time': elapse, 'error':None}
 
         except Exception as e:
-            return {'query': None, 'row_count': None, 'time': None, 'error':e}
+            return {'query': None, 'row_count': None, 'time': None, 'error':str(e).replace("'","''")}
 
 
     def test_query_local(self,query):
@@ -117,7 +117,7 @@ class SnowflakeComparison(object):
             return {'query': query, 'row_count': rows, 'time': elapse, 'error':None}
 
         except Exception as e:
-            return {'query': None, 'row_count': None, 'time': None, 'error':e}
+            return {'query': None, 'row_count': None, 'time': None, 'error':str(e).replace("'","''")}
 
 
     def compare_results(self,query):
@@ -125,12 +125,11 @@ class SnowflakeComparison(object):
         try:
             sflake = self.test_query_snowflake(query)
             local = self.test_query_local(query)
-            print(sflake['error'])
             return {'query':query,'local_record_count':local['row_count'],'local_exec_time':local['time'],'snow_record_count':sflake['row_count'],
                     'snow_exec_time':sflake['time'],'localError':local['error'],'snowError':sflake['error']}
 
-        except Exception as e:
-            print(e)
+        except:
+            pass
 
 
     def send_results_to_db(self,query):
@@ -139,7 +138,6 @@ class SnowflakeComparison(object):
         cursor.execute("INSERT INTO SnowflakeCompareResults(query,local_rec_count,local_exec_time,snow_rec_count,snow_exec_time,local_error,snow_error) "
                        "VALUES (?,?,?,?,?,?,?)",
                        (results['query'].replace("'","''"), results['local_record_count'],results['local_exec_time'],results['snow_record_count'],
-                        results['snow_exec_time'],str(results['localError']).replace("'","''"),str(results['snowError']).replace("'","''")))
-        print(query)
+                        results['snow_exec_time'],results['localError'],results['snowError']))
         #cursor.execute(query)
         cursor.commit()
