@@ -1,40 +1,119 @@
 import snowflake.connector
+import pyodbc
 from localSettings import *
 import time
-#https://www.youtube.com/watch?v=KYdg9Bfi0X4
-conn = snowflake.connector.connect(user=SNOWFLAKE_USER,password=SNOWFLAKE_PW,account=SNOWFLAKE_ACCOUNT,role='ACCOUNTADMIN',warehouse=
-                                   SNOWFLAKE_WAREHOUSE,schema=SNOWFLAKE_SCHEMA, database=SNOWFLAKE_DATABASE)
 
-def execute_query(connection, query):
-    cursor = connection.cursor()
-    cursor.execute(query)
-    cursor.close()
-    return cursor
 
-def execute_snowflake_query(query):
-    try:
+
+
+class SnowflakeComparison(object):
+    def __init__(self,):
+        self.sf_server = SNOWFLAKE_ACCOUNT
+        self.sf_user = SNOWFLAKE_USER
+        self.sf_pw = SNOWFLAKE_PW
+        self.sf_db = SNOWFLAKE_DATABASE
+        self.sf_wh = SNOWFLAKE_WAREHOUSE
+        self.sf_schema = SNOWFLAKE_SCHEMA
+        self.sf_connection = self.connect_to_snowflake()
+        self.local_server = LOCAL_SERVER
+        self.local_db = LOCAL_DB
+        self.local_un = LOCAL_UN
+        self.local_pw = LOCAL_PW
+        self.local_connection = self.connect_to_local_db()
+
+
+    def connect_to_snowflake(self):
+        '''
+        This method will build the connection to snowflake and start up the service
+        '''
+        conn = snowflake.connector.connect(user=SNOWFLAKE_USER, password=SNOWFLAKE_PW, account=SNOWFLAKE_ACCOUNT,
+                                           role='ACCOUNTADMIN', warehouse=
+                                           SNOWFLAKE_WAREHOUSE, schema=SNOWFLAKE_SCHEMA, database=SNOWFLAKE_DATABASE)
+
         try:
             sql = 'alter warehouse {} resume'.format(SNOWFLAKE_WAREHOUSE)
-            execute_query(conn, sql)
+            self.execute_sf_query(conn, sql)
             print('Altered warehouse')
         except:
             pass
+        return conn
 
-        sql1 = query
-        sql2 ='select count(*) from({})z'.format(sql1)
-        cursor=conn.cursor()
-        start = time.time()
-        cursor.execute(sql2)
-        end = time.time()
-        elapse=end-start
-        rows=cursor.fetchone()[0]
-        return {'query': query, 'row_count': rows, 'time': elapse, 'database': 'Snowflake'}
-    except Exception as e:
-        print(e)
+    def connect_to_local_db(self):
+        '''
+        Connects to the local database
+        '''
+        connectionString = 'DRIVER={{ODBC Driver 17 for SQL Server}};server={};database={};uid={};pwd={}' \
+            .format(self.local_server, self.local_db, self.local_un, self.local_pw)
+        con = pyodbc.connect(connectionString)
+        print('Connected to database {} on {}'.format(self.local_db,self.local_server))
 
-
+        return con
 
 
+    def execute_sf_query(self, query):
+        cursor = self.sf_connection.cursor()
+        cursor.execute(query)
+        return cursor
+
+    def execute_local_query(self, query):
+        cursor = self.local_connection.cursor()
+        cursor.execute(query)
+        return cursor
+
+    def test_query_snowflake(self,query):
+        '''
+        This method will run the query past to it and return a dictionary with the query, row count and execution time.
+        If there is an error, it will provide the error message.
+        '''
+        try:
+            sql1 = query
+            sql2 = 'select count(*) from({})z'.format(sql1)
+            start = time.time()
+            #cursor.execute(sql2)
+            retVal = self.execute_sf_query(sql2)
+            end = time.time()
+            elapse = end - start
+            rows = retVal.fetchone()[0]
+            return {'query': query, 'row_count': rows, 'time': elapse, 'database': 'Snowflake', 'error':None}
+
+        except Exception as e:
+            return {'query': None, 'row_count': None, 'time': elapse, 'database': 'Snowflake', 'error':e}
 
 
-print(execute_snowflake_query("select * from company where FIC='GBR'"))
+    def test_query_local(self,query):
+        '''
+        This method will run the query past to it and return a dictionary with the query, row count and execution time.
+        If there is an error, it will provide the error message.
+        '''
+        try:
+            sql1 = query
+            sql2 = 'select count(*) from({})z'.format(sql1)
+            start = time.time()
+            #cursor.execute(sql2)
+            retVal = self.execute_local_query(sql2)
+            end = time.time()
+            elapse = end - start
+            rows = retVal.fetchone()[0]
+            return {'query': query, 'row_count': rows, 'time': elapse, 'database': 'Snowflake', 'error':None}
+
+        except Exception as e:
+            return {'query': None, 'row_count': None, 'time': elapse, 'database': 'Snowflake', 'error':e}
+
+
+    def compare_results(self,query):
+        retdict ={}
+        try:
+            sflake = self.test_query_snowflake(query)
+            local = self.test_query_local(query)
+            return {'query':query,'local_record_count':local['row_count'],'local_exec_time':local['time'],'snow_record_count':sflake['row_count'],
+                    'snow_exec_time':sflake['time'],'error':None}
+        except Exception as e:
+            return {'query': query, 'local_record_count': None, 'local_exec_time': None,
+                    'snow_record_count': None,
+                    'snow_exec_time': None, 'error': e}
+
+
+
+
+x = SnowflakeComparison()
+print(x.compare_results("select * from company1 where fic='CHN'"))
